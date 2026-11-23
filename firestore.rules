@@ -1,0 +1,556 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything unless explicitly matched
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // Global Hardened Primitives
+    // -----------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isVerifiedGmail() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isValidAuthType(authType) {
+      return (authType == 'guest') || (authType == 'gmail' && isVerifiedGmail());
+    }
+
+    // -----------------------------------------------------------------------
+    // Validation Blueprints
+    // -----------------------------------------------------------------------
+    function isValidPublicProfile(data) {
+      return data.keys().hasAll([
+          'uid', 'guestCode', 'displayName', 'authType',
+          'avatarColor', 'knownCount', 'bookmarkedCount', 'streakDays',
+          'todayReviews', 'totalStudyMinutes', 'checklistDone', 'chapterKnown',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'guestCode', 'displayName', 'authType',
+          'avatarColor', 'knownCount', 'bookmarkedCount', 'streakDays',
+          'todayReviews', 'totalStudyMinutes', 'focusXp', 'checklistDone', 'chapterKnown',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.guestCode is string
+        && data.guestCode.size() >= 4 && data.guestCode.size() <= 24
+        && data.guestCode.matches('^[A-Z0-9\\-]+$')
+        && data.displayName is string
+        && data.displayName.size() >= 1 && data.displayName.size() <= 40
+        && data.authType is string
+        && isValidAuthType(data.authType)
+        && data.avatarColor is string
+        && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 24
+        && (data.knownCount is int || data.knownCount is float)
+        && data.knownCount >= 0 && data.knownCount <= 1000
+        && (data.bookmarkedCount is int || data.bookmarkedCount is float)
+        && data.bookmarkedCount >= 0 && data.bookmarkedCount <= 1000
+        && (data.streakDays is int || data.streakDays is float)
+        && data.streakDays >= 0 && data.streakDays <= 10000
+        && (data.todayReviews is int || data.todayReviews is float)
+        && data.todayReviews >= 0 && data.todayReviews <= 10000
+        && (data.totalStudyMinutes is int || data.totalStudyMinutes is float)
+        && data.totalStudyMinutes >= 0 && data.totalStudyMinutes <= 1000000
+        && (!('focusXp' in data) || ((data.focusXp is int || data.focusXp is float) && data.focusXp >= 0 && data.focusXp <= 50000000))
+        && (data.checklistDone is int || data.checklistDone is float)
+        && data.checklistDone >= 0 && data.checklistDone <= 5000
+        && data.chapterKnown is map && data.chapterKnown.size() <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGuestCodeLookup(data, codeId) {
+      return data.keys().hasAll([
+          'guestCode', 'uid', 'displayName', 'authType', 'avatarColor', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'guestCode', 'uid', 'displayName', 'authType', 'avatarColor', 'createdAt'
+        ])
+        && data.guestCode is string
+        && data.guestCode == codeId
+        && data.guestCode.size() >= 4 && data.guestCode.size() <= 24
+        && data.guestCode.matches('^[A-Z0-9\\-]+$')
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+        && data.authType is string && isValidAuthType(data.authType)
+        && data.avatarColor is string && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 24
+        && data.createdAt is timestamp;
+    }
+
+    function isValidUserStudyData(data) {
+      return data.keys().hasAll([
+          'uid', 'email', 'knownIds', 'bookmarkedIds', 'flashcards',
+          'checklist', 'sessions', 'dailyReviews', 'streakDays',
+          'lastActiveDate', 'lastVisitedFormulaId', 'settings', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'knownIds', 'bookmarkedIds', 'flashcards',
+          'checklist', 'sessions', 'dailyReviews', 'streakDays',
+          'lastActiveDate', 'lastVisitedFormulaId', 'settings', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 160
+        && data.knownIds is list && data.knownIds.size() <= 500
+        && (data.knownIds.size() == 0 || (data.knownIds[0] is string && data.knownIds[0].size() <= 128))
+        && data.bookmarkedIds is list && data.bookmarkedIds.size() <= 500
+        && (data.bookmarkedIds.size() == 0 || (data.bookmarkedIds[0] is string && data.bookmarkedIds[0].size() <= 128))
+        && data.flashcards is map && data.flashcards.size() <= 500
+        && data.checklist is list && data.checklist.size() <= 300
+        && (data.checklist.size() == 0 || data.checklist[0] is map)
+        && data.sessions is list && data.sessions.size() <= 200
+        && (data.sessions.size() == 0 || data.sessions[0] is map)
+        && data.dailyReviews is map && data.dailyReviews.size() <= 1000
+        && (data.streakDays is int || data.streakDays is float)
+        && data.streakDays >= 0 && data.streakDays <= 10000
+        && data.lastActiveDate is string && data.lastActiveDate.size() <= 20
+        && data.lastVisitedFormulaId is string && data.lastVisitedFormulaId.size() <= 128
+        && data.settings is map && data.settings.size() <= 20
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCommunityMessage(data) {
+      return data.keys().hasAll([
+          'id', 'senderId', 'senderName', 'senderCode',
+          'senderAuthType', 'channel', 'text', 'photoDataUrl',
+          'formulaTag', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'senderId', 'senderName', 'senderCode',
+          'senderAuthType', 'channel', 'text', 'photoDataUrl',
+          'formulaTag', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.senderId)
+        && data.senderId == request.auth.uid
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40
+        && data.senderCode is string && data.senderCode.size() >= 4 && data.senderCode.size() <= 24
+        && data.senderCode.matches('^[A-Z0-9\\-]+$')
+        && data.senderAuthType is string && isValidAuthType(data.senderAuthType)
+        && data.channel is string
+        && data.channel in ['general', 'electromagnetism', 'modern-physics', 'optics', 'semiconductors']
+        && data.text is string && data.text.size() <= 1000
+        && data.photoDataUrl is string && data.photoDataUrl.size() <= 350000
+        && (data.text.size() > 0 || data.photoDataUrl.size() > 0)
+        && data.formulaTag is string && data.formulaTag.size() <= 80
+        && data.createdAt is timestamp;
+    }
+
+    function isValidDmThread(data) {
+      return data.keys().hasAll([
+          'id', 'participantA', 'participantB', 'participants',
+          'nameA', 'nameB', 'codeA', 'codeB', 'status',
+          'initiatedBy', 'lastMessage', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'participantA', 'participantB', 'participants',
+          'nameA', 'nameB', 'codeA', 'codeB', 'status',
+          'initiatedBy', 'lastMessage', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.participantA)
+        && isValidId(data.participantB)
+        && data.participantA < data.participantB
+        && data.id == data.participantA + '_' + data.participantB
+        && data.participants is list && data.participants.size() == 2
+        && data.participants[0] == data.participantA
+        && data.participants[1] == data.participantB
+        && data.nameA is string && data.nameA.size() >= 1 && data.nameA.size() <= 40
+        && data.nameB is string && data.nameB.size() >= 1 && data.nameB.size() <= 40
+        && data.codeA is string && data.codeA.size() >= 4 && data.codeA.size() <= 24
+        && data.codeA.matches('^[A-Z0-9\\-]+$')
+        && data.codeB is string && data.codeB.size() >= 4 && data.codeB.size() <= 24
+        && data.codeB.matches('^[A-Z0-9\\-]+$')
+        && data.status is string && data.status in ['pending', 'accepted']
+        && isValidId(data.initiatedBy)
+        && (data.initiatedBy == data.participantA || data.initiatedBy == data.participantB)
+        && data.lastMessage is string && data.lastMessage.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDmMessage(data, parentThreadId) {
+      return data.keys().hasAll([
+          'id', 'threadId', 'participantA', 'participantB',
+          'participants', 'senderId', 'senderName', 'text',
+          'photoDataUrl', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'threadId', 'participantA', 'participantB',
+          'participants', 'senderId', 'senderName', 'text',
+          'photoDataUrl', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.threadId)
+        && data.threadId == parentThreadId
+        && isValidId(data.participantA)
+        && isValidId(data.participantB)
+        && data.participants is list && data.participants.size() == 2
+        && data.participants[0] == data.participantA
+        && data.participants[1] == data.participantB
+        && isValidId(data.senderId)
+        && data.senderId == request.auth.uid
+        && data.senderId in data.participants
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40
+        && data.text is string && data.text.size() <= 1000
+        && data.photoDataUrl is string && data.photoDataUrl.size() <= 350000
+        && (data.text.size() > 0 || data.photoDataUrl.size() > 0)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidStudyRoom(data) {
+      return data.keys().hasAll([
+          'id', 'roomCode', 'title', 'chapter', 'hostUid',
+          'hostName', 'hostCode', 'phase', 'workMinutes',
+          'breakMinutes', 'isRunning', 'remainingSeconds',
+          'phaseEndsAtMs', 'isActive', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'roomCode', 'title', 'chapter', 'hostUid',
+          'hostName', 'hostCode', 'phase', 'workMinutes',
+          'breakMinutes', 'isRunning', 'remainingSeconds',
+          'phaseEndsAtMs', 'isActive', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.roomCode is string && data.roomCode.size() >= 4 && data.roomCode.size() <= 16
+        && data.roomCode.matches('^[A-Z0-9\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 60
+        && data.chapter is string && data.chapter.size() >= 1 && data.chapter.size() <= 40
+        && isValidId(data.hostUid)
+        && data.hostUid == request.auth.uid
+        && data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 40
+        && data.hostCode is string && data.hostCode.size() >= 4 && data.hostCode.size() <= 24
+        && data.hostCode.matches('^[A-Z0-9\\-]+$')
+        && data.phase is string && data.phase in ['focus', 'break']
+        && (data.workMinutes is int || data.workMinutes is float)
+        && data.workMinutes >= 5 && data.workMinutes <= 90
+        && (data.breakMinutes is int || data.breakMinutes is float)
+        && data.breakMinutes >= 1 && data.breakMinutes <= 30
+        && data.isRunning is bool
+        && (data.remainingSeconds is int || data.remainingSeconds is float)
+        && data.remainingSeconds >= 0 && data.remainingSeconds <= 5400
+        && (data.phaseEndsAtMs is int || data.phaseEndsAtMs is float)
+        && data.phaseEndsAtMs >= 0 && data.phaseEndsAtMs <= 9999999999999
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStudyParticipant(data, parentRoomId) {
+      return data.keys().hasAll([
+          'uid', 'roomId', 'displayName', 'guestCode', 'authType',
+          'avatarColor', 'status', 'focusTopic', 'joinedAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'roomId', 'displayName', 'guestCode', 'authType',
+          'avatarColor', 'status', 'focusTopic', 'joinedAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && isValidId(data.roomId)
+        && data.roomId == parentRoomId
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+        && data.guestCode is string && data.guestCode.size() >= 4 && data.guestCode.size() <= 24
+        && data.guestCode.matches('^[A-Z0-9\\-]+$')
+        && data.authType is string && isValidAuthType(data.authType)
+        && data.avatarColor is string && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 24
+        && data.status is string
+        && data.status in ['focusing', 'solving-pyqs', 'revising-notes', 'on-break', 'paused']
+        && data.focusTopic is string && data.focusTopic.size() <= 60
+        && data.joinedAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // -----------------------------------------------------------------------
+    // 1. Connectivity Check
+    // -----------------------------------------------------------------------
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. Public Profiles (Non-PII Community Identity)
+    // -----------------------------------------------------------------------
+    match /publicProfiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && existing().authType in ['guest', 'gmail'];
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidPublicProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidPublicProfile(incoming())
+        && userId == request.auth.uid
+        && existing().uid == request.auth.uid
+        && incoming().uid == existing().uid
+        && incoming().guestCode == existing().guestCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'authType', 'avatarColor', 'knownCount',
+          'bookmarkedCount', 'streakDays', 'todayReviews',
+          'totalStudyMinutes', 'focusXp', 'checklistDone', 'chapterKnown', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // 2a. Guest Code O(1) Lookup
+    // -----------------------------------------------------------------------
+    match /guestCodes/{guestCode} {
+      allow get: if isSignedIn() && isValidId(guestCode);
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidId(guestCode)
+        && isValidGuestCodeLookup(incoming(), guestCode)
+        && incoming().createdAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(guestCode)
+        && isValidGuestCodeLookup(incoming(), guestCode)
+        && existing().uid == request.auth.uid
+        && incoming().uid == existing().uid
+        && incoming().guestCode == existing().guestCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'authType', 'avatarColor']);
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. Private Study Data & PII (Owner-Only, Non-Erasable)
+    // -----------------------------------------------------------------------
+    match /users/{userId}/private/{docId} {
+      allow get: if isSignedIn()
+        && isValidId(userId)
+        && isValidId(docId)
+        && userId == request.auth.uid
+        && docId == 'studyData';
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isValidId(docId)
+        && userId == request.auth.uid
+        && docId == 'studyData'
+        && isValidUserStudyData(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidId(docId)
+        && isValidUserStudyData(incoming())
+        && userId == request.auth.uid
+        && docId == 'studyData'
+        && existing().uid == request.auth.uid
+        && incoming().uid == existing().uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'email', 'knownIds', 'bookmarkedIds', 'flashcards',
+          'checklist', 'sessions', 'dailyReviews', 'streakDays',
+          'lastActiveDate', 'lastVisitedFormulaId', 'settings', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. Community Doubt Channels (Public Channels for Signed-In Aspirants)
+    // -----------------------------------------------------------------------
+    match /communityMessages/{messageId} {
+      allow get: if isSignedIn()
+        && isValidId(messageId)
+        && (resource == null || existing().channel in ['general', 'electromagnetism', 'modern-physics', 'optics', 'semiconductors']);
+      allow list: if isSignedIn()
+        && existing().channel in ['general', 'electromagnetism', 'modern-physics', 'optics', 'semiconductors'];
+      allow create: if isSignedIn()
+        && isValidId(messageId)
+        && isValidCommunityMessage(incoming())
+        && incoming().id == messageId
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/publicProfiles/$(request.auth.uid));
+      allow update: if false;
+      allow delete: if isSignedIn()
+        && isValidId(messageId)
+        && existing().senderId == request.auth.uid;
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. 1v1 Friend Connections & Direct Message Threads
+    // -----------------------------------------------------------------------
+    match /dmThreads/{threadId} {
+      allow get: if isSignedIn()
+        && isValidId(threadId)
+        && (resource == null || request.auth.uid in existing().participants);
+      allow list: if isSignedIn()
+        && request.auth.uid in existing().participants;
+      allow create: if isSignedIn()
+        && isValidId(threadId)
+        && isValidDmThread(incoming())
+        && incoming().id == threadId
+        && incoming().status == 'pending'
+        && incoming().initiatedBy == request.auth.uid
+        && request.auth.uid in incoming().participants
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/publicProfiles/$(incoming().participantA))
+        && exists(/databases/$(database)/documents/publicProfiles/$(incoming().participantB));
+      allow update: if isSignedIn()
+        && isValidId(threadId)
+        && isValidDmThread(incoming())
+        && request.auth.uid in existing().participants
+        && incoming().id == existing().id
+        && incoming().participantA == existing().participantA
+        && incoming().participantB == existing().participantB
+        && incoming().participants == existing().participants
+        && incoming().initiatedBy == existing().initiatedBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Recipient accepts pending friend request (non-reversible)
+          (
+            existing().status == 'pending'
+            && incoming().status == 'accepted'
+            && request.auth.uid != existing().initiatedBy
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'lastMessage', 'updatedAt'])
+          )
+          ||
+          // Action 2: Participant updates thread preview / nickname in accepted thread
+          (
+            existing().status == 'accepted'
+            && incoming().status == 'accepted'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'nameA', 'nameB', 'updatedAt'])
+          )
+        );
+      allow delete: if isSignedIn()
+        && isValidId(threadId)
+        && existing().status == 'pending'
+        && request.auth.uid in existing().participants;
+
+      // ---------------------------------------------------------------------
+      // 5a. Subcollection: 1v1 Direct Messages (Master Gate on Parent Thread)
+      // ---------------------------------------------------------------------
+      match /messages/{messageId} {
+        allow get: if isSignedIn()
+          && isValidId(threadId)
+          && isValidId(messageId)
+          && request.auth.uid in get(/databases/$(database)/documents/dmThreads/$(threadId)).data.participants;
+        allow list: if isSignedIn()
+          && request.auth.uid in existing().participants;
+        allow create: if isSignedIn()
+          && isValidId(threadId)
+          && isValidId(messageId)
+          && isValidDmMessage(incoming(), threadId)
+          && incoming().id == messageId
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/dmThreads/$(threadId))
+          && get(/databases/$(database)/documents/dmThreads/$(threadId)).data.status == 'accepted'
+          && request.auth.uid in get(/databases/$(database)/documents/dmThreads/$(threadId)).data.participants
+          && incoming().participants == get(/databases/$(database)/documents/dmThreads/$(threadId)).data.participants;
+        allow update: if false;
+        allow delete: if isSignedIn()
+          && isValidId(threadId)
+          && isValidId(messageId)
+          && existing().senderId == request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/dmThreads/$(threadId)).data.participants;
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. Shared Study Rooms (Live Pomodoro Together)
+    // -----------------------------------------------------------------------
+    match /studyRooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId);
+      allow list: if isSignedIn() && existing().isActive == true;
+      allow create: if isSignedIn()
+        && isValidId(roomId)
+        && isValidStudyRoom(incoming())
+        && incoming().id == roomId
+        && incoming().isActive == true
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/publicProfiles/$(request.auth.uid));
+      allow update: if isSignedIn()
+        && isValidId(roomId)
+        && isValidStudyRoom(incoming())
+        && existing().hostUid == request.auth.uid
+        && incoming().id == existing().id
+        && incoming().roomCode == existing().roomCode
+        && incoming().hostUid == existing().hostUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'chapter', 'hostName', 'phase', 'workMinutes',
+          'breakMinutes', 'isRunning', 'remainingSeconds', 'phaseEndsAtMs',
+          'isActive', 'updatedAt'
+        ]);
+      allow delete: if isSignedIn()
+        && isValidId(roomId)
+        && existing().hostUid == request.auth.uid;
+
+      // ---------------------------------------------------------------------
+      // 6a. Subcollection: Live Room Participants & Study Status Badges
+      // ---------------------------------------------------------------------
+      match /participants/{participantId} {
+        allow get: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(participantId)
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId));
+        allow list: if isSignedIn()
+          && existing().roomId == roomId
+          && existing().status in ['focusing', 'solving-pyqs', 'revising-notes', 'on-break', 'paused'];
+        allow create: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(participantId)
+          && participantId == request.auth.uid
+          && isValidStudyParticipant(incoming(), roomId)
+          && incoming().joinedAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/studyRooms/$(roomId))
+          && get(/databases/$(database)/documents/studyRooms/$(roomId)).data.isActive == true;
+        allow update: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(participantId)
+          && isValidStudyParticipant(incoming(), roomId)
+          && participantId == request.auth.uid
+          && existing().uid == request.auth.uid
+          && incoming().uid == existing().uid
+          && incoming().roomId == existing().roomId
+          && incoming().joinedAt == existing().joinedAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'status', 'focusTopic', 'updatedAt'
+          ]);
+        allow delete: if isSignedIn()
+          && isValidId(roomId)
+          && isValidId(participantId)
+          && (
+            participantId == request.auth.uid
+            || get(/databases/$(database)/documents/studyRooms/$(roomId)).data.hostUid == request.auth.uid
+          );
+      }
+    }
+  }
+}

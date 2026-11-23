@@ -1,0 +1,288 @@
+{
+  "entities": {
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Publicly visible non-PII user identity for Guest ID and Gmail aspirants in community chat and friend discovery.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "guestCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "authType": { "type": "string", "enum": ["guest", "gmail"] },
+        "avatarColor": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "knownCount": { "type": "number" },
+        "bookmarkedCount": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "todayReviews": { "type": "number" },
+        "totalStudyMinutes": { "type": "number" },
+        "focusXp": { "type": "number" },
+        "checklistDone": { "type": "number" },
+        "chapterKnown": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "guestCode",
+        "displayName",
+        "authType",
+        "avatarColor",
+        "knownCount",
+        "bookmarkedCount",
+        "streakDays",
+        "todayReviews",
+        "totalStudyMinutes",
+        "checklistDone",
+        "chapterKnown",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserStudyData": {
+      "title": "UserStudyData",
+      "description": "Private persistent JEE study progress synced for Gmail and Guest sessions so user data is never lost.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 160 },
+        "knownIds": { "type": "array" },
+        "bookmarkedIds": { "type": "array" },
+        "flashcards": { "type": "object" },
+        "checklist": { "type": "array" },
+        "sessions": { "type": "array" },
+        "dailyReviews": { "type": "object" },
+        "streakDays": { "type": "number" },
+        "lastActiveDate": { "type": "string", "maxLength": 20 },
+        "lastVisitedFormulaId": { "type": "string", "maxLength": 128 },
+        "settings": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "email",
+        "knownIds",
+        "bookmarkedIds",
+        "flashcards",
+        "checklist",
+        "sessions",
+        "dailyReviews",
+        "streakDays",
+        "lastActiveDate",
+        "lastVisitedFormulaId",
+        "settings",
+        "updatedAt"
+      ]
+    },
+    "CommunityMessage": {
+      "title": "CommunityMessage",
+      "description": "Real-time community chat message supporting text, formula tags, and compressed doubt photos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "senderCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "senderAuthType": { "type": "string", "enum": ["guest", "gmail"] },
+        "channel": { "type": "string", "enum": ["general", "electromagnetism", "modern-physics", "optics", "semiconductors"] },
+        "text": { "type": "string", "maxLength": 1000 },
+        "photoDataUrl": { "type": "string", "maxLength": 350000 },
+        "formulaTag": { "type": "string", "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "senderId",
+        "senderName",
+        "senderCode",
+        "senderAuthType",
+        "channel",
+        "text",
+        "photoDataUrl",
+        "formulaTag",
+        "createdAt"
+      ]
+    },
+    "DmThread": {
+      "title": "DmThread",
+      "description": "1-on-1 friend connection and DM thread between two users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participantA": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participantB": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participants": { "type": "array" },
+        "nameA": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "nameB": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "codeA": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "codeB": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "status": { "type": "string", "enum": ["pending", "accepted"] },
+        "initiatedBy": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "lastMessage": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "participantA",
+        "participantB",
+        "participants",
+        "nameA",
+        "nameB",
+        "codeA",
+        "codeB",
+        "status",
+        "initiatedBy",
+        "lastMessage",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DmMessage": {
+      "title": "DmMessage",
+      "description": "1-on-1 direct message inside an accepted friend thread, supporting text and doubt photos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "threadId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participantA": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participantB": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "participants": { "type": "array" },
+        "senderId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "text": { "type": "string", "maxLength": 1000 },
+        "photoDataUrl": { "type": "string", "maxLength": 350000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "threadId",
+        "participantA",
+        "participantB",
+        "participants",
+        "senderId",
+        "senderName",
+        "text",
+        "photoDataUrl",
+        "createdAt"
+      ]
+    },
+    "GuestCodeLookup": {
+      "title": "GuestCodeLookup",
+      "description": "Direct O(1) non-PII lookup from shareable Guest ID (JEE-XXXXXX) to user UID.",
+      "type": "object",
+      "properties": {
+        "guestCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "uid": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "authType": { "type": "string", "enum": ["guest", "gmail"] },
+        "avatarColor": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["guestCode", "uid", "displayName", "authType", "avatarColor", "createdAt"]
+    },
+    "StudyRoom": {
+      "title": "StudyRoom",
+      "description": "Shared live Pomodoro focus timer room hosted by an aspirant for friends and community members to study together in real time.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "roomCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "chapter": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "hostUid": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "hostCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "phase": { "type": "string", "enum": ["focus", "break"] },
+        "workMinutes": { "type": "number" },
+        "breakMinutes": { "type": "number" },
+        "isRunning": { "type": "boolean" },
+        "remainingSeconds": { "type": "number" },
+        "phaseEndsAtMs": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "roomCode",
+        "title",
+        "chapter",
+        "hostUid",
+        "hostName",
+        "hostCode",
+        "phase",
+        "workMinutes",
+        "breakMinutes",
+        "isRunning",
+        "remainingSeconds",
+        "phaseEndsAtMs",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StudyRoomParticipant": {
+      "title": "StudyRoomParticipant",
+      "description": "Live participant presence and study status badge inside a Shared Study Room.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "roomId": { "type": "string", "minLength": 4, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "guestCode": { "type": "string", "minLength": 4, "maxLength": 24, "pattern": "^[A-Z0-9\\-]+$" },
+        "authType": { "type": "string", "enum": ["guest", "gmail"] },
+        "avatarColor": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "status": { "type": "string", "enum": ["focusing", "solving-pyqs", "revising-notes", "on-break", "paused"] },
+        "focusTopic": { "type": "string", "maxLength": 60 },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "roomId",
+        "displayName",
+        "guestCode",
+        "authType",
+        "avatarColor",
+        "status",
+        "focusTopic",
+        "joinedAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/publicProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public non-PII profiles indexed by user UID for community identity and member list."
+    },
+    "/guestCodes/{guestCode}": {
+      "schema": { "$ref": "#/entities/GuestCodeLookup" },
+      "description": "Direct O(1) Guest ID lookup mapping shareable code to UID."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserStudyData" },
+      "description": "Owner-only private study state backup and Gmail email metadata."
+    },
+    "/communityMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/CommunityMessage" },
+      "description": "Public JEE community doubt chat messages across subject channels with optional doubt photos."
+    },
+    "/dmThreads/{threadId}": {
+      "schema": { "$ref": "#/entities/DmThread" },
+      "description": "1-on-1 friend request and accepted direct message thread metadata."
+    },
+    "/dmThreads/{threadId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/DmMessage" },
+      "description": "1-on-1 direct messages belonging to an accepted friend thread."
+    },
+    "/studyRooms/{roomId}": {
+      "schema": { "$ref": "#/entities/StudyRoom" },
+      "description": "Shared live Pomodoro study rooms hosted by JEE aspirants."
+    },
+    "/studyRooms/{roomId}/participants/{participantId}": {
+      "schema": { "$ref": "#/entities/StudyRoomParticipant" },
+      "description": "Live study status badges and presence for members inside a Shared Study Room."
+    }
+  }
+}

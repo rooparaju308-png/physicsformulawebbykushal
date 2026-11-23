@@ -1,0 +1,6 @@
+{
+  "name": "JEE Physics Web",
+  "description": "Interlinked Physics Formula Web, Interactive Labs, Graphs, Flashcards & Study Timer PWA for JEE Main 2027",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
